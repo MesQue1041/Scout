@@ -1,0 +1,13 @@
+Supervisor meeting, 14 August 2026
+Attendees: Alex Rivera, Dr. Mele Tupou (supervisor)
+
+- Agreed dissertation topic: unsupervised log anomaly detection, extending Project Lighthouse.
+- Proposal deadline: 30 September 2026.
+- Dr. Tupou suggested moving to the BGL dataset next, because HDFS results are close to saturated in the literature.
+- Next meeting: 28 August 2026.
+
+Supervisor meeting, 28 August 2026
+Attendees: Alex Rivera, Dr. Mele Tupou
+
+- Reviewed first draft of the proposal introduction. Needs a clearer research question.
+- Dr. Tupou asked for a comparison against at least one published baseline.

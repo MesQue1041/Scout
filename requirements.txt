@@ -1,0 +1,10 @@
+openai>=1.40          
+chromadb>=0.5
+sentence-transformers>=3.0
+pypdf>=4.0
+python-dotenv>=1.0
+tavily-python>=0.5   
+ddgs>=9.0             
+fastapi>=0.110
+uvicorn>=0.29
+pyyaml>=6.0
