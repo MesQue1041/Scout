@@ -2,7 +2,7 @@ import json
 from datetime import date
 from typing import Iterator
 
-from openai import OpenAI, BadRequestError
+from openai import OpenAI
 
 import config
 import guardrail
@@ -52,16 +52,37 @@ class Agent:
 
     # one streamed model call 
     def _stream_once(self, allow_tools: bool) -> Iterator[dict]:
+        """Stream one completion. Yields token events, then a final
+        {"type": "_message", ...} carrying the assembled assistant message."""
+        system_content = SYSTEM_PROMPT.format(today=date.today().isoformat())
+
+        if not allow_tools:
+            system_content += (
+                "\n\nYou no longer have access to any tools. Do not attempt to "
+                "call any function. Answer the user's question directly using "
+                "only the information already gathered above."
+            )
+            resp = self.client.chat.completions.create(
+                model=config.LLM_MODEL,
+                messages=[{"role": "system", "content": system_content}] + self.history,
+                temperature=config.TEMPERATURE,
+                stream=False,
+            )
+            text = resp.choices[0].message.content or ""
+            if text:
+                yield {"type": "token", "text": text}
+            yield {"type": "_message", "message": {"role": "assistant", "content": text}}
+            return
+
+        # Streaming path with tools available.
         kwargs = dict(
             model=config.LLM_MODEL,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT.format(today=date.today().isoformat())}]
-                     + self.history,
+            messages=[{"role": "system", "content": system_content}] + self.history,
             temperature=config.TEMPERATURE,
             stream=True,
+            tools=TOOL_SCHEMAS,
+            tool_choice="auto",
         )
-        if allow_tools:
-            kwargs["tools"] = TOOL_SCHEMAS
-            kwargs["tool_choice"] = "auto"
 
         text_parts: list[str] = []
         calls: dict[int, dict] = {}  # tool calls arrive in fragments, keyed by index
@@ -73,7 +94,6 @@ class Agent:
             if delta.content:
                 text_parts.append(delta.content)
                 yield {"type": "token", "text": delta.content}
-
             for tc in delta.tool_calls or []:
                 slot = calls.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
                 if tc.id:
@@ -119,9 +139,9 @@ class Agent:
                         message = event["message"]
                     else:
                         yield event
-            except BadRequestError as e:
+            except Exception as e:
                 yield {"type": "error", "message": f"Model request failed: {e}"}
-                del self.history[turn_start:]  # rolls back this whole turn so history stays valid
+                del self.history[turn_start:]  # roll back this whole turn so history stays valid
                 yield {"type": "done", "tools_used": tools_used}
                 return
 

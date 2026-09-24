@@ -1,7 +1,7 @@
 import json
 import config
 
-MIN_SCORE = 0.2  # cosine similarity below this is almost certainly noise
+MIN_SCORE = 0.15  # cosine similarity below this is almost certainly noise
 
 TOOL_SCHEMAS = [
     {

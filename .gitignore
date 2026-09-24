@@ -1,7 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
 .venv/
 venv/
+env/
+
+# Environment / secrets
 .env
+.env.local
+.env.*.local
+
+# Local database (rebuildable from docs/ via `python ingest.py`)
 chroma_db/
-__pycache__/
-*.pyc
+
+# Eval output (regenerated on every run)
 evals/results_*.json
+
+# Test caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

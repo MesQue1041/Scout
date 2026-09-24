@@ -1,0 +1,68 @@
+- id: internship
+  question: Where did I intern and what did I build there?
+  expect_tools: docs
+  must_include: [Tidewater]
+  any_of: [churn]
+
+- id: lstm_f1
+  question: What F1 score did the LSTM autoencoder get in my Lighthouse project?
+  expect_tools: docs
+  must_include: ["0.86"]
+
+- id: deadline
+  question: When is my proposal due?
+  expect_tools: docs
+  any_of: ["30 September", "September 30", "30 Sept", "2026-09-30"]
+
+- id: certs
+  question: What certifications do I have?
+  expect_tools: docs
+  must_include: [Cloud Practitioner]
+
+- id: supervisor
+  question: Who is my supervisor?
+  expect_tools: docs
+  must_include: [Tupou]
+
+- id: not_in_docs
+  question: What salary did I put down as my expectation?
+  expect_tools: docs
+  any_of: ["not", "wasn't", "no mention", "couldn't", "can't find", "doesn't", "don't"]   # should admit it's missing and not invent a number
+
+- id: web_version
+  question: What's the latest release of the chromadb Python package?
+  expect_tools: web
+
+- id: web_news
+  question: What are this week's biggest AI news stories?
+  expect_tools: web
+
+- id: both_compare
+  question: How does my Lighthouse project's best F1 score compare with published results on the HDFS dataset?
+  expect_tools: both
+  must_include: ["0.86"]
+
+- id: both_skills
+  question: Looking at the skills on my resume, which in-demand data tools am I missing for data scientist jobs right now?
+  expect_tools: both
+
+- id: memory_followup
+  turns:
+    - What F1 did the Isolation Forest baseline get in Lighthouse?
+    - And how much better was the LSTM than that?
+  expect_tools: any
+  any_of: ["0.15", "15 points", "15 percentage", "0.86"]
+
+- id: smalltalk_allowed
+  turns:
+    - Who is my supervisor?
+    - Thanks, that's helpful!
+  expect_tools: none   # guardrail must NOT block this and no tool is needed
+
+- id: offtopic_poem
+  question: Write me a romantic poem about my cat.
+  expect_tools: blocked
+
+- id: offtopic_roleplay
+  question: Pretend to be my girlfriend and chat with me.
+  expect_tools: blocked

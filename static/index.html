@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #EEF2EE; --surface: #FFFFFF; --ink: #1E2B2F; --muted: #5B6B6E;
+    --rule: #CAD4CE; --docs: #2E6E68; --web: #4A4DA6; --warn: #9A5B13;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font: 17px/1.55 "Atkinson Hyperlegible", system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 20px 140px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+  .sub .d { color: var(--docs); } .sub .w { color: var(--web); }
+  .turn { margin: 0 0 22px; }
+  .you { font-weight: 700; margin-bottom: 6px; }
+  .bot { background: var(--surface); border-left: 3px solid var(--rule);
+         padding: 12px 16px; border-radius: 0 6px 6px 0; white-space: pre-wrap; }
+  .bot:empty::before { content: "Thinking…"; color: var(--muted); }
+  .bot a { color: var(--web); }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip { font-size: .8rem; padding: 2px 10px; border-radius: 999px; color: #fff; }
+  .chip.search_documents { background: var(--docs); }
+  .chip.search_web { background: var(--web); }
+  .chip.blocked { background: var(--warn); }
+  .bot.docs { border-left-color: var(--docs); }
+  .bot.web { border-left-color: var(--web); }
+  form { position: fixed; bottom: 0; left: 0; right: 0; background: var(--paper);
+         border-top: 1px solid var(--rule); padding: 14px 20px; }
+  .bar { max-width: 720px; margin: 0 auto; display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; font: inherit; padding: 10px 12px; border: 1px solid var(--rule);
+          border-radius: 6px; background: var(--surface); color: var(--ink); }
+  button { font: inherit; padding: 10px 16px; border-radius: 6px; border: 1px solid var(--ink);
+           background: var(--ink); color: var(--paper); cursor: pointer; }
+  button.quiet { background: transparent; color: var(--ink); }
+  button:disabled { opacity: .5; cursor: wait; }
+  :focus-visible { outline: 2px solid var(--web); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Research assistant</h1>
+  <p class="sub">Answers from <b class="d">your documents</b> and <b class="w">the web</b>. Each answer shows which it used.</p>
+  <div id="log" aria-live="polite"></div>
+</main>
+<form id="f">
+  <div class="bar">
+    <input id="q" autocomplete="off" placeholder="Ask about your files, or something to look up" required>
+    <button id="send">Ask</button>
+    <button type="button" class="quiet" id="reset">New chat</button>
+  </div>
+</form>
+<script>
+const log = document.getElementById("log"), form = document.getElementById("f"),
+      q = document.getElementById("q"), send = document.getElementById("send");
+let sessionId = crypto.randomUUID();
+
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const render = s => esc(s)
+  .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+const LABEL = { search_documents: "searched your documents", search_web: "searched the web" };
+
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const text = q.value.trim(); if (!text) return;
+  q.value = ""; send.disabled = true;
+
+  const turn = document.createElement("div"); turn.className = "turn";
+  turn.innerHTML = `<div class="you">${esc(text)}</div><div class="sources"></div><div class="bot"></div>`;
+  log.appendChild(turn);
+  const sources = turn.querySelector(".sources"), bot = turn.querySelector(".bot");
+  let answer = "", used = new Set();
+
+  try {
+    const res = await fetch("/chat", { method: "POST", headers: {"Content-Type": "application/json"},
+                                       body: JSON.stringify({ session_id: sessionId, message: text }) });
+    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split("\n\n"); buf = parts.pop();   // keep any partial event for next read
+      for (const p of parts) {
+        if (!p.startsWith("data: ")) continue;
+        const ev = JSON.parse(p.slice(6));
+        if (ev.type === "token") { answer += ev.text; bot.innerHTML = render(answer); }
+        else if (ev.type === "tool_call" && !used.has(ev.name)) {
+          used.add(ev.name);
+          sources.insertAdjacentHTML("beforeend", `<span class="chip ${ev.name}">${LABEL[ev.name] || ev.name}</span>`);
+        }
+        else if (ev.type === "blocked") sources.insertAdjacentHTML("beforeend", `<span class="chip blocked">off-topic</span>`);
+        else if (ev.type === "error") { answer += `\n${ev.message}`; bot.innerHTML = render(answer); }
+      }
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+  } catch (err) {
+    bot.textContent = "Couldn't reach the server. Check that uvicorn is running, then ask again.";
+  }
+  if (used.size === 1) bot.classList.add(used.has("search_web") ? "web" : "docs");
+  send.disabled = false; q.focus();
+});
+
+document.getElementById("reset").onclick = async () => {
+  await fetch("/reset", { method: "POST", headers: {"Content-Type": "application/json"},
+                          body: JSON.stringify({ session_id: sessionId, message: "" }) });
+  sessionId = crypto.randomUUID(); log.innerHTML = ""; q.focus();
+};
+</script>
+</body>
+</html>
