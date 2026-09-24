@@ -1,4 +1,4 @@
-# Research assistant: documents + web, with a real agent loop
+# Research assistant: documents + web with real agent loop
 
 A chat assistant pointed at a folder of your own files that can also search the
 live web. Per question, the model decides which source to use, it can be your documents,
